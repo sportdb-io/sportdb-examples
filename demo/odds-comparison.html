@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sportdb.io — odds comparison demo</title>
+<style>
+  :root{--ink:#0f1b2d;--mut:#5b6b80;--line:#e5eaf1;--brand:#1f6feb;--accent:#15b886;--bg2:#f6f8fb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif;color:var(--ink);background:var(--bg2);line-height:1.5}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 18px 60px}
+  h1{font-size:22px;margin:0 0 4px}.logo b{color:var(--brand)}
+  .muted{color:var(--mut);font-size:14px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin:16px 0}
+  input,select{border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:14px}
+  input{flex:1;min-width:220px;font-family:ui-monospace,Menlo,monospace}
+  button{background:var(--brand);color:#fff;border:0;border-radius:9px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer}
+  a{color:var(--brand)}
+  .ev{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+  .ev h3{margin:0 0 2px;font-size:16px}.ev .lg{color:var(--mut);font-size:13px;margin-bottom:8px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{padding:6px 8px;text-align:center;border-top:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left;color:var(--mut)}
+  td{font-variant-numeric:tabular-nums}
+  .best{background:#e7f8f1;color:#0a7a56;border-radius:6px;font-weight:800}
+  .err{background:#fdecee;border:1px solid #f5c2c7;color:#842029;border-radius:10px;padding:10px 12px;font-size:14px}
+  .note{color:var(--mut);font-size:12px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="logo">sport<b>db</b>.io — odds comparison demo</h1>
+  <div class="muted">Best price per outcome across every book. Get a free key at
+    <a href="https://sportdb.io/register" target="_blank" rel="noopener">sportdb.io/register</a>.</div>
+
+  <div class="bar">
+    <input id="key" type="password" placeholder="X-API-Key (sdb_live_...)" autocomplete="off">
+    <select id="sport">
+      <option value="football">Football</option>
+      <option value="basketball">Basketball</option>
+      <option value="tennis">Tennis</option>
+    </select>
+    <button id="go">Load odds</button>
+  </div>
+
+  <div id="out"></div>
+  <p class="note">Data from the sportdb.io API. Odds are informational, not betting advice.</p>
+</div>
+
+<script>
+const out = document.getElementById('out');
+document.getElementById('go').onclick = load;
+
+async function load() {
+  const key = document.getElementById('key').value.trim();
+  const sport = document.getElementById('sport').value;
+  if (!key) { out.innerHTML = '<div class="err">Enter your API key.</div>'; return; }
+  out.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const res = await fetch(`https://sportdb.io/v1/${sport}/odds?limit=15`, { headers: { 'X-API-Key': key } });
+    if (!res.ok) throw new Error('HTTP ' + res.status + (res.status === 401 ? ' — check your key' : ''));
+    const { data } = await res.json();
+    if (!data || !data.length) { out.innerHTML = '<p class="muted">No priced matches in the window right now.</p>'; return; }
+    out.innerHTML = data.map(renderEvent).join('');
+  } catch (e) {
+    out.innerHTML = '<div class="err">' + e.message + '</div>';
+  }
+}
+
+function renderEvent(ev) {
+  const outcomes = ('draw' in (ev.best || {})) ? ['home', 'draw', 'away'] : ['home', 'away'];
+  const books = (ev.books || []).slice(0, 8);
+  const head = '<tr><th>Book</th>' + outcomes.map(o => `<th>${o}</th>`).join('') + '</tr>';
+  const rows = books.map(b => '<tr><td>' + (b.book || '') + '</td>' +
+    outcomes.map(o => cell(b[o], ev.best && ev.best[o] && ev.best[o].book === b.book)).join('') + '</tr>').join('');
+  const bestRow = '<tr><td><b>best</b></td>' + outcomes.map(o =>
+    `<td class="best">${ev.best && ev.best[o] ? ev.best[o].odd : '-'}</td>`).join('') + '</tr>';
+  return `<div class="ev"><h3>${esc(ev.home)} — ${esc(ev.away)}</h3>
+    <div class="lg">${esc(ev.league || '')}</div>
+    <table>${head}${rows}${bestRow}</table></div>`;
+}
+function cell(v, isBest) { return `<td class="${isBest ? 'best' : ''}">${v ?? '-'}</td>`; }
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+</script>
+</body>
+</html>

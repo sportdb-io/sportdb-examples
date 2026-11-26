@@ -1,0 +1,11 @@
+{
+  "name": "sportdb-examples-node",
+  "private": true,
+  "type": "module",
+  "description": "sportdb.io API examples (Node 18+, uses built-in fetch)",
+  "scripts": {
+    "odds": "node best_odds.mjs",
+    "live": "node live_scores.mjs",
+    "value": "node value_bets.mjs"
+  }
+}
